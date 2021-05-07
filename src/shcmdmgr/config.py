@@ -48,7 +48,13 @@ def get_logger():
     return logger
 
 def get_conf():
-    conf = {'logging_level': INFO_LEVEL,}  # logging basic set up before config loads
-    conf.update(filemanip.load_json_file(GLOBAL_CONFIG_FILE))
-    conf.update(filemanip.load_json_file(LOCAL_CONFIG_FILE))
+    conf = {'logging_level': INFO_LEVEL,}  # logging basic setup before config loads
+    try:
+        conf.update(filemanip.load_json_file(GLOBAL_CONFIG_FILE))
+    except FileNotFoundError:
+        logger.error('seems the global configuration file is missing, add it to $(GLOBAL_CONFIG_FILE)')
+    try:
+        conf.update(filemanip.load_json_file(LOCAL_CONFIG_FILE))
+    except FileNotFoundError:
+        pass
     return conf

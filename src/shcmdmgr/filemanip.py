@@ -8,9 +8,6 @@ def save_json_file(json_content_object, file_location):
 
 def load_json_file(file_location):
     data = dict()
-    try:
-        with open(file_location) as json_file:
-            data = json.load(json_file)
-    except FileNotFoundError:
-        pass
+    with open(file_location) as json_file:
+        data = json.load(json_file)
     return data

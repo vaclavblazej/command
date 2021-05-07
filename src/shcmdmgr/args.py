@@ -1,4 +1,3 @@
-
 from shcmdmgr import util, process
 from shcmdmgr.command import Command
 

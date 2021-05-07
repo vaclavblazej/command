@@ -9,7 +9,7 @@ from shcmdmgr.command import Command
 def run_command(command_with_arguments):
     return subprocess.getoutput(command_with_arguments)
 
-def run_script(command_with_arguments, formatter=None):
+def run_script(command_with_arguments, formatter):
     try:
         process = subprocess.Popen(command_with_arguments)
         try:
@@ -23,7 +23,7 @@ def run_script(command_with_arguments, formatter=None):
     except KeyboardInterrupt:
         formatter.print_str()
 
-def execute(logger, cmd: Command, args=None):
+def execute(logger, cmd: Command, args):
     if not args: args = []
     if isinstance(cmd.command, str):
         logger.verbose('running command: ' + cmd.command)

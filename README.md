@@ -1,6 +1,5 @@
 **DISCLAIMER (WORK IN PROGRESS):**
-As of May 2020 this project is work in progress.
-The alpha release is planned for June 2020.
+As of Feb 2021 this project is still work in progress.
 
 It **IS** designed to
 
@@ -38,31 +37,10 @@ Alias: sysversion
 Short description: Shows the system version
 ```
 
-Run the command either by invoking the alias
+Run the command either by invoking the alias.
 
 ```sh
 $ cmd sysversion
-Distributor ID:	Ubuntu
-Description:	Ubuntu 20.04 LTS
-Release:	20.04
-Codename:	focal
-```
-
-or use search `cmd -f` (or `cmd --find`) to find and run the command.
-
-```sh
-$ cmd --find
-========================================
-query $ system                            % items matching the regex are displayed
---- 1 ------------------------------
-cmd: do-release-upgrade
-des: Upgrades the system to the newest released version
---- 2 ------------------------------
-cmd: lsb_release -a
-des: Shows the system version
-========================================
-query $ 2                                 % choose the command by entering its number
-run command: lsb_release -a
 Distributor ID:	Ubuntu
 Description:	Ubuntu 20.04 LTS
 Release:	20.04
@@ -90,17 +68,16 @@ $ cmd --edit
 ]
 ```
 
-### Completion
+### Enabling completion
 
-Completion is supported in `bash` and `zsh` shells, and must be enabled explicitly.
-Installing the completion is the matter of adding file-source to the RC file.
+Completion is supported in `bash` and `zsh` shells, but it must be enabled manually.
+Installing the completion is the matter of adding source to your RC file.
 
-The correct command can be emited by invoking `--completion <shell>` command.
-So you can use the following for bash or zsh respectively.
+The correct command can be emitted by invoking `--completion <shell>` command.
 
 ```sh
-cmd --completion bash >> ~/.bashrc
-cmd --completion zsh >> ~/.zshrc
+cmd --completion bash >> ~/.bashrc    # for bash
+cmd --completion zsh >> ~/.zshrc      # for zsh
 ```
 
 ---

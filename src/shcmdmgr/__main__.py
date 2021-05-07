@@ -2,7 +2,7 @@
 #
 #    shell-command-manager
 #    Tool for managing custom commands from a central location
-#    Copyright (C) 2020  Václav Blažej
+#    Copyright (C) 2020-2021  Václav Blažej
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -18,19 +18,19 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import datetime
 import os
+import shlex
 import subprocess
 import sys
-import datetime
-import shlex
 from os.path import join, exists
 from string import Template
 
-from shcmdmgr import config, filemanip, project, complete, cio, process
-from shcmdmgr.command import Command, load_commands
-from shcmdmgr.project import Project
+from shcmdmgr import config, filemanip, project, complete, cio
 from shcmdmgr.args import Argument, CommandArgument, ArgumentGroup
+from shcmdmgr.command import Command, load_commands
 from shcmdmgr.parser import Parser
+from shcmdmgr.project import Project
 
 WORKING_DIRECTORY = os.getcwd()
 DEFAULT_COMMAND_LOAD_DEJA_VU = False
@@ -38,6 +38,7 @@ DEFAULT_COMMAND_LOAD_DEJA_VU = False
 # == Main Logic ==================================================================
 
 def main():
+    ''' Do the basic setup so the program runs correctly and invoke the desired command '''
     logger = None
     form = None
     try:
@@ -63,6 +64,7 @@ def main():
         if logger: logger.critical('Manually interrupted!')
 
 def setup():
+    ''' Create instances necessary for runtime '''
     logger = config.get_logger()
     form = cio.Formatter(logger)
     pars = Parser(sys.argv, form, logger)
@@ -81,27 +83,33 @@ class App:
         self.argument_groups_cache = None
 
     def main_command(self):
+        ''' Either perform the command if available or invoke the default command '''
         current_command = self.parser.peek()
         self.logger.debug('Current command {}'.format(current_command))
         if current_command:
             return self.execute_command(current_command)
-        else:
-            default_command = self.conf['default_command']
-            if default_command:
-                new_args = shlex.split(default_command)
-                if len(new_args) != 0:
-                    global DEFAULT_COMMAND_LOAD_DEJA_VU
-                    if DEFAULT_COMMAND_LOAD_DEJA_VU: # prevent adding default command multiple times
-                        self.logger.warning('The default command is invalid, it must include a command argument')
-                        return config.USER_ERROR
-                    DEFAULT_COMMAND_LOAD_DEJA_VU = True
-                    self.logger.debug('Applying defalt arguments {}'.format(new_args))
-                    sys.argv += new_args
-                    return main()
-            self.logger.warning('No command given')
-            return config.USER_ERROR
+        elif not self.parser.help:
+            return self.invoke_default_command()
+
+    def invoke_default_command(self):
+        ''' todo '''
+        default_command = self.conf['default_command']
+        if default_command:
+            new_args = shlex.split(default_command)
+            if len(new_args) != 0:
+                global DEFAULT_COMMAND_LOAD_DEJA_VU
+                if DEFAULT_COMMAND_LOAD_DEJA_VU: # prevent adding default command multiple times
+                    self.logger.warning('The default command is invalid, it must include a command argument')
+                    return config.USER_ERROR
+                DEFAULT_COMMAND_LOAD_DEJA_VU = True
+                self.logger.debug('Applying defalt arguments %s', new_args)
+                sys.argv += new_args
+                return main()
+        self.logger.warning('No command given')
+        return config.USER_ERROR
 
     def execute_command(self, current_command):
+        ''' The main execution is issued from here '''
         if not self.parser.may_have(self.all_commands()):
             self.logger.warning('The argument/command %s was not found', cio.quote(current_command))
             self.logger.info('run "cmd --help" if you are having trouble')
@@ -116,6 +124,7 @@ class App:
         ]
 
     # == Formatting ==================================================================
+
     def print_general_help(self):
         help_str = ''
         help_str += 'usage: cmd [-q|-v|-d] [-g|-p] <command> [<args>]\n'
@@ -139,6 +148,8 @@ class App:
     def cmd_help(self):
         self.parser.enable_help()
         self.parser.remove_first_argument()
+        if self.parser.peek() == None:
+            self.print_general_help()
         return self.main_command()
 
     def cmd_version(self):
@@ -201,57 +212,6 @@ class App:
         if self.conf['scope'] == config.GLOBAL_SCOPE: return config.GLOBAL_COMMANDS_FILE_LOCATION
         return None
 
-    def cmd_find(self):
-        max_cmd_count = 4
-        max_cmd_count_slack = 2
-        commands_db = load_commands(config.GLOBAL_COMMANDS_FILE_LOCATION)
-        if self.project: commands_db += self.project.commands
-        selected_commands = []
-        try:
-            while True:
-                self.form.print_str(40 * '=')
-                arguments = self.parser.get_rest('search query')
-                if len(arguments) != 0:
-                    query = ' '.join(arguments)
-                    arguments = []
-                else:
-                    query = self.form.input_str('query $ ')
-                try:
-                    idx = int(query)
-                    if idx not in range(1, len(selected_commands)+1):
-                        self.form.print_str('invalid index')
-                        continue
-                    process.execute(self.logger, selected_commands[idx-1])
-                    break
-                except ValueError as _:
-                    pass
-                index = 1
-                results = []
-                for cmd in commands_db:
-                    result = cmd.find(query)
-                    if result is not None:
-                        (priority, formatted_text) = result
-                        results.append((priority, formatted_text, cmd))
-                total_results_count = len(results)
-                if total_results_count == 0:
-                    self.form.print_str('No results found')
-                results = sorted(results, reverse=True) # by priority
-                selected_commands = []
-                cmd_showing_count = max_cmd_count
-                if total_results_count <= cmd_showing_count + max_cmd_count_slack:
-                    cmd_showing_count += max_cmd_count_slack
-                for result in results[:cmd_showing_count]:
-                    (_, text, cmd) = result
-                    selected_commands.append(cmd)
-                    self.form.print_str('--- ' + str(index) + ' ' + (30 * '-'))
-                    self.form.print_str(text, end='')
-                    index = index+1
-                if total_results_count > cmd_showing_count:
-                    self.form.print_str('\nand ' + str(total_results_count-cmd_showing_count) + ' other commands')
-        except EOFError as _:
-            self.form.print_str()
-        return config.SUCCESSFULL_EXECUTION
-
     def cmd_edit(self):
         self.parser.expect_nothing()
         editor = 'vim'
@@ -308,7 +268,6 @@ class App:
     def argument_args(self):
         res = {}
         res['SAVE'] = Argument('--save', '-s', self.cmd_save, 'Saves command which is passed as further arguments')
-        res['FIND'] = Argument('--find', '-f', self.cmd_find, 'Opens an interactive search for saved commands')
         res['EDIT'] = Argument('--edit', '-e', self.cmd_edit, 'Edit the command database in text editor')
         res['INIT'] = Argument('--init', '-i', self.cmd_initialize, 'Initialize a project')
         res['VERSION'] = Argument('--version', '-V', self.cmd_version, 'Prints out version information')
@@ -333,14 +292,15 @@ class App:
         res['PROJECT_COMMANDS'] = ArgumentGroup('project commands', None, self.load_project_aliases, project_help_string)
         res['CUSTOM_COMMANDS'] = ArgumentGroup('custom commands', None, self.load_aliases, 'You may add new custom commands via "cmd --save if the command is given alias, it will show up here.')
         args = self.argument_args
-        res['CMD_COMMANDS'] = ArgumentGroup('management commands', [args['SAVE'], args['FIND'], args['EDIT'], args['INIT'], args['VERSION'], args['HELP'], args['COMPLETE'], args['COMPLETION']])
-        res['CMD_SHOWN_COMMANDS'] = ArgumentGroup('management commands', [args['SAVE'], args['FIND'], args['EDIT'], args['INIT'], args['VERSION'], args['HELP']])
+        res['CMD_COMMANDS'] = ArgumentGroup('management commands', [args['SAVE'], args['EDIT'], args['INIT'], args['VERSION'], args['HELP'], args['COMPLETE'], args['COMPLETION']])
+        res['CMD_SHOWN_COMMANDS'] = ArgumentGroup('management commands', [args['SAVE'], args['EDIT'], args['INIT'], args['VERSION'], args['HELP']])
         res['OUTPUT_ARGUMENTS'] = ArgumentGroup('', [args['QUIET'], args['VERBOSE'], args['DEBUG']])
         res['OPTIONAL_ARGUMENTS'] = ArgumentGroup('optional arguments', [args['QUIET'], args['VERBOSE'], args['DEBUG'], args['project_SCOPE'], args['GLOBAL_SCOPE']])
         self.argument_groups_cache = res
         return self.argument_groups_cache
 
 def set_function(what, property_name, value):
+    ''' Helper function to enable setting a variable to be a command '''
     what[property_name] = value
 
 # == Main invocation =============================================================

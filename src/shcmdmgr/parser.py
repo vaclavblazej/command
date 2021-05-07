@@ -13,12 +13,14 @@ class Parser:
         self.arguments = arguments
         self.complete = None
         self.form = form
-        self.help = None
+        self.help = False
         self.logger = logger
-        self.possible_arguments = []
 
     def enable_help(self):
-        """All commands will print possible arguments and their description."""
+        """
+        All commands will print possible arguments and their description
+        instead of their normal behavior.
+        """
         if self.help:
             self.form.print_str('usage: --help <command>')
             self.form.print_str('prints more defailed information about how to use the <command>')
@@ -26,11 +28,15 @@ class Parser:
         self.help = True
 
     def enable_completion(self):
-        """All commands will print list of possible arguments."""
+        """
+        All commands will print list of possible arguments instead of their
+        normal behavior.
+        """
         last_arg = sys.argv[-1]
         sys.argv = sys.argv[:-1]
         self.complete = Complete(last_arg)
-        self.logger.setLevel(config.QUIET_LEVEL) # fix when set after main() call
+        self.logger.setLevel(config.QUIET_LEVEL)
+        # fixme: no output must be ensured as soon as possible, however if main is called again, it may reset logger level to something more verbose
 
     def peek(self):
         """Returns the first argument, but doesn't remove it."""

@@ -43,7 +43,7 @@
     },
     {
         "command": "coverage run -m test; coverage report -m",
-        "description": "coevr",
+        "description": "Compute code coverage of the tests",
         "alias": "cover",
         "creation_time": "2020-06-07 14:44:43"
     }
