@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ================================================================================
 #
 #    shell-command-manager
 #    Tool for managing custom commands from a central location
@@ -17,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# ================================================================================
 
 import datetime
 import os
@@ -33,14 +35,13 @@ from shcmdmgr.parser import Parser
 from shcmdmgr.project import Project
 
 WORKING_DIRECTORY = os.getcwd()
-DEFAULT_COMMAND_LOAD_DEJA_VU = False
+DEFAULT_COMMAND_WAS_INJECTED = False
 
 # == Main Logic ==================================================================
 
 def main():
     ''' Do the basic setup so the program runs correctly and invoke the desired command '''
     logger = None
-    form = None
     try:
         (app, pars, conf, proj, logger) = setup()
         pars.shift() # skip the program invocation
@@ -56,11 +57,10 @@ def main():
             if proj: conf['scope'] = config.PROJECT_SCOPE
             else: conf['scope'] = config.GLOBAL_SCOPE
         if conf['scope'] == config.PROJECT_SCOPE and not proj:
-            logger.critical('Scope is set to "project", however no project is present. To create project in the current folder run the "--init" command.')
+            logger.critical('Scope is set to "project", however no project is present. To create a project in the current folder run the "--init" command.')
             return config.USER_ERROR
         return app.main_command()
     except KeyboardInterrupt:
-        if form: form.print_str()
         if logger: logger.critical('Manually interrupted!')
 
 def setup():
@@ -92,16 +92,16 @@ class App:
             return self.invoke_default_command()
 
     def invoke_default_command(self):
-        ''' todo '''
+        """ Inject the default command into the arguments and re-run the whole program. """
         default_command = self.conf['default_command']
         if default_command:
             new_args = shlex.split(default_command)
             if len(new_args) != 0:
-                global DEFAULT_COMMAND_LOAD_DEJA_VU
-                if DEFAULT_COMMAND_LOAD_DEJA_VU: # prevent adding default command multiple times
+                global DEFAULT_COMMAND_WAS_INJECTED
+                if DEFAULT_COMMAND_WAS_INJECTED:
                     self.logger.warning('The default command is invalid, it must include a command argument')
                     return config.USER_ERROR
-                DEFAULT_COMMAND_LOAD_DEJA_VU = True
+                DEFAULT_COMMAND_WAS_INJECTED = True
                 self.logger.debug('Applying defalt arguments %s', new_args)
                 sys.argv += new_args
                 return main()
@@ -139,7 +139,7 @@ class App:
         ]
         self.form.print_str(ArgumentGroup.to_str(main_groups), end='')
         self.form.print_str()
-        additional_str = 'Run "cmd --help <command>" to get help for specific command'
+        additional_str = 'Run "cmd --help <command>" to get help for a specific command'
         self.form.print_str(additional_str)
         return config.SUCCESSFULL_EXECUTION
 
@@ -283,7 +283,8 @@ class App:
 
     @property
     def argument_groups(self):
-        if self.argument_groups_cache: return self.argument_groups_cache
+        if self.argument_groups_cache:
+            return self.argument_groups_cache
         res = {}
         project_aliases = self.load_project_aliases()
         project_help_string = None

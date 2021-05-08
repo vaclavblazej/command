@@ -7,7 +7,7 @@
 
 ## Bugs from testing 
 
-* --
+* unknown command gives help which says 'cmd --help' even if the command has alias c
 
 ## Done since the last release (to be moved to the CHANGELOG)
 

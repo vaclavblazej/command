@@ -22,7 +22,7 @@ class Parser:
         instead of their normal behavior.
         """
         if self.help:
-            self.form.print_str('usage: --help <command>')
+            self.form.print_str('usage: cmd --help <command>')
             self.form.print_str('prints more defailed information about how to use the <command>')
             sys.exit(config.SUCCESSFULL_EXECUTION)
         self.help = True
