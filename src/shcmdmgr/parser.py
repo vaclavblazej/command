@@ -32,6 +32,10 @@ class Parser:
         All commands will print list of possible arguments instead of their
         normal behavior.
         """
+        if self.help:
+            self.form.print_str('usage: cmd --complete <args>')
+            self.form.print_str('prints out a list of possible arguments after the given <args>')
+            sys.exit(config.SUCCESSFULL_EXECUTION)
         last_arg = sys.argv[-1]
         sys.argv = sys.argv[:-1]
         self.complete = Complete(last_arg)
@@ -46,16 +50,10 @@ class Parser:
         self.logger.debug('Parser peek {}'.format(cio.quote(res)))
         return res
 
-    def get_command(self):
-        # if self.complete:
-        #     return self.complete.commands(self.load_aliases_raw(), self.load_project_aliases_raw())
-        # if self.help.print:
-        #     return self.print_general_help()
-        self.logger.debug('Parser command')
-
     def get_rest(self):
         """Returns all of the remaining arguments."""
         if self.help:
+            #  self.form.print_str(help_string)
             sys.exit(config.SUCCESSFULL_EXECUTION)
         res = self.arguments
         self.arguments = []
@@ -66,8 +64,11 @@ class Parser:
         self.arguments = self.arguments[1:]
         return res
 
-    def expect_nothing(self):
+    def expect_nothing(self, help_string):
         cur = self.peek()
+        if self.help:
+            self.form.print_str(help_string)
+            sys.exit(config.SUCCESSFULL_EXECUTION)
         if cur:
             self.form.print_str('parameter {} is given where no parameter was expected'.format(cio.quote(cur)))
             sys.exit(config.USER_ERROR)

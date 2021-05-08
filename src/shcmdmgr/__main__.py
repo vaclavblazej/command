@@ -92,7 +92,7 @@ class App:
             return self.invoke_default_command()
 
     def invoke_default_command(self):
-        """ Inject the default command into the arguments and re-run the whole program. """
+        ''' Push the default command into arguments and run the whole command again '''
         default_command = self.conf['default_command']
         if default_command:
             new_args = shlex.split(default_command)
@@ -153,7 +153,7 @@ class App:
         return self.main_command()
 
     def cmd_version(self):
-        self.parser.expect_nothing()
+        self.parser.expect_nothing('prints out the version of shell command manager in formatting: "cmd version <ver>" where <ver> is in format 1.0.0[-devX]')
         self.form.print_str('cmd version ' + config.VERSION)
         return config.SUCCESSFULL_EXECUTION
 
@@ -168,30 +168,33 @@ class App:
         return config.SUCCESSFULL_EXECUTION
 
     def cmd_save(self):
-        alias = ''
-        description = ''
+        properties = {
+                'alias': None,
+                'description': None,
+                'args': None,
+        }
         other_args = [
-            Argument('--alias', '-a', lambda: print('TODO'), 'one word shortcut used to invoke the command'),
-            Argument('--descr', '-d', lambda: print('TODO'), 'few words about the command\'s functionality'),
-            Argument('--', None, lambda: print('TODO'), 'command to be saved follows'),
+            Argument('--alias', '-a', lambda: set_function(properties, 'alias', self.parser.shift()), 'one word shortcut used to invoke the command'),
+            Argument('--descr', '-d', lambda: set_function(properties, 'description', self.parser.shift()), 'few words about the command\'s functionality'),
+            Argument('--', None, lambda: set_function(properties, 'args', self.parser.get_rest()), 'command to be saved follows'),
         ]
         self.parser.load_all([ArgumentGroup('save arguments (missing will be queried)', other_args)])
-        arguments = self.parser.get_rest('command to be saved')
+        if not properties['args']: properties['args'] = self.form.input_str('Command: ')
         show_edit = False
-        if len(arguments) == 0: # supply the last command from history
+        if len(properties['args']) == 0: # supply the last command from history
             history_file_location = join(os.environ['HOME'], self.conf['history_home'])
             history_command_in_binary = subprocess.check_output(['tail', '-1', history_file_location])
             history_command = history_command_in_binary[:-1].decode("utf-8")
-            arguments = history_command.split(' ')
+            properties['args'] = shlex.split(history_command)
             show_edit = True
-        if len(arguments) > 0 and exists(arguments[0]): # substitute relative file path for absolute
+        if len(properties['args']) != 0 and exists(properties['args'][0]): # substitute relative file path for absolute
             if self.conf['scope'] == config.PROJECT_SCOPE:
-                path_from_project_root = os.path.relpath(join(WORKING_DIRECTORY, arguments[0]), self.project.directory)
-                arguments[0] = '${}/{}'.format(config.PROJECT_ROOT_VAR, path_from_project_root)
+                path_from_project_root = os.path.relpath(join(WORKING_DIRECTORY, properties['args'][0]), self.project.directory)
+                properties['args'][0] = '${}/{}'.format(config.PROJECT_ROOT_VAR, path_from_project_root)
             if self.conf['scope'] == config.GLOBAL_SCOPE:
-                arguments[0] = os.path.realpath(join(WORKING_DIRECTORY, arguments[0]))
+                properties['args'][0] = os.path.realpath(join(WORKING_DIRECTORY, properties['args'][0]))
             show_edit = True
-        command_to_save = ' '.join(arguments)
+        command_to_save = properties['args']
         if show_edit:
             command_to_save = self.form.input_str('The command to be saved: ', prefill=command_to_save)
         else:
@@ -199,11 +202,11 @@ class App:
         commands_file_location = self.get_context_command_file_location()
         if not exists(commands_file_location):
             filemanip.save_json_file([], commands_file_location)
-        if alias == '': alias = self.form.input_str('Alias: ')
-        if description == '': description = self.form.input_str('Short description: ')
+        if not properties['alias']: properties['alias'] = self.form.input_str('Alias: ')
+        if not properties['description']: properties['description'] = self.form.input_str('Short description: ')
         commands_db = load_commands(commands_file_location)
         creation_time = str(datetime.datetime.now().strftime(self.conf['time_format']))
-        commands_db.append(Command(command_to_save, description, alias, creation_time))
+        commands_db.append(Command(command_to_save, properties['description'], properties['alias'], creation_time))
         filemanip.save_json_file(commands_db, commands_file_location)
         return config.SUCCESSFULL_EXECUTION
 
@@ -213,7 +216,7 @@ class App:
         return None
 
     def cmd_edit(self):
-        self.parser.expect_nothing()
+        self.parser.expect_nothing('opens the file containing all saved command metadata in editor determined by the exported shell variable "$EDITOR"')
         editor = 'vim'
         try:
             editor = Template('$EDITOR').substitute(os.environ)
